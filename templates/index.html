@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Review Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background-color: #f5f5f5;
+            min-height: 100vh;
+        }
+
+        /* Header Styles */
+        header {
+            background-color: white;
+            border-bottom: 1px solid #e5e7eb;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: background-color 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease;
+        }
+
+        header.scrolled {
+            background-color: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(12px);
+            border-bottom-color: rgba(229, 231, 235, 0.3);
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-icon {
+            width: 3rem;
+            height: 3rem;
+            background-color: #f3f4f6;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            color: #374151;
+        }
+
+        .header-text h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .header-text p {
+            font-size: 0.9375rem;
+            color: #6b7280;
+        }
+
+        /* Features Bar */
+        .features-bar {
+            background-color: #fafafa;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1.25rem 0;
+        }
+
+        .features-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .features-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            color: #4b5563;
+            font-size: 0.9375rem;
+            font-weight: 500;
+        }
+
+        .feature-item svg {
+            width: 1.125rem;
+            height: 1.125rem;
+        }
+
+        /* Main Content */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 2rem;
+        }
+
+        /* Form Card */
+        .form-card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e7eb;
+            padding: 2rem;
+        }
+
+        .form-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+
+        .form-header-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .form-icon {
+            width: 3rem;
+            height: 3rem;
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.625rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .form-icon svg {
+            width: 1.375rem;
+            height: 1.375rem;
+            color: #6b7280;
+        }
+
+        .form-title-section h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.375rem;
+        }
+
+        .form-title-section p {
+            font-size: 0.9375rem;
+            color: #6b7280;
+        }
+
+        .sample-btn {
+            padding: 0.625rem 1.25rem;
+            font-size: 0.9375rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            background-color: white;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .sample-btn:hover {
+            background-color: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        /* Form Fields */
+        .form-fields {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .required {
+            color: #dc2626;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.9375rem;
+            font-family: inherit;
+            transition: all 0.2s;
+            background-color: white;
+            color: #1f2937;
+        }
+
+        .form-group select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239ca3af' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-color: white;
+            padding-right: 2.5rem;
+        }
+
+        .form-group select:hover:not(:disabled) {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            border-color: #bfdbfe;
+        }
+
+        .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* Custom dropdown styling */
+        .form-group select option {
+            background-color: white;
+            color: #1f2937;
+            padding: 0.5rem;
+        }
+
+        /* Webkit browsers dropdown styling */
+        @supports selector(::-webkit-scrollbar) {
+            .form-group select {
+                border-radius: 0.625rem;
+            }
+
+            .form-group select::-webkit-scrollbar {
+                width: 8px;
+            }
+
+            .form-group select::-webkit-scrollbar-track {
+                background: rgba(229, 231, 235, 0.5);
+                border-radius: 0.5rem;
+            }
+
+            .form-group select::-webkit-scrollbar-thumb {
+                background: rgba(156, 163, 175, 0.6);
+                border-radius: 0.5rem;
+            }
+
+            .form-group select::-webkit-scrollbar-thumb:hover {
+                background: rgba(107, 114, 128, 0.8);
+            }
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: #9ca3af;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .submit-btn {
+            padding: 0.875rem 1.5rem;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 0.625rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .submit-btn:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .submit-btn svg {
+            width: 1.125rem;
+            height: 1.125rem;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Metrics Card */
+        .metrics-card {
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .card-header svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: #374151;
+        }
+
+        .card-header h3 {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-item {
+            text-align: center;
+        }
+
+        .metric-icon-wrapper {
+            width: 3.5rem;
+            height: 3.5rem;
+            margin: 0 auto 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .metric-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .metric-icon.total {
+            background-color: #f3f4f6;
+        }
+
+        .metric-icon.approved {
+            background-color: #d1fae5;
+        }
+
+        .metric-icon.changes {
+            background-color: #fef3c7;
+        }
+
+        .metric-icon.blocked {
+            background-color: #fee2e2;
+        }
+
+        .metric-icon svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        .metric-icon.total svg {
+            color: #6b7280;
+        }
+
+        .metric-icon.approved svg {
+            color: #10b981;
+        }
+
+        .metric-icon.changes svg {
+            color: #f59e0b;
+        }
+
+        .metric-icon.blocked svg {
+            color: #ef4444;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.375rem;
+        }
+
+        .metric-value.total {
+            color: #1f2937;
+        }
+
+        .metric-value.approved {
+            color: #10b981;
+        }
+
+        .metric-value.changes {
+            color: #f59e0b;
+        }
+
+        .metric-value.blocked {
+            color: #ef4444;
+        }
+
+        .metric-label {
+            font-size: 0.8125rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        /* Chart */
+        .chart-container {
+            position: relative;
+            height: 120px;
+            border-top: 1px solid #f3f4f6;
+            padding-top: 1.5rem;
+        }
+
+        .chart-bars {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 80px;
+            gap: 0.5rem;
+        }
+
+        .chart-bar-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .chart-bar {
+            width: 100%;
+            max-width: 32px;
+            background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+            border-radius: 0.25rem 0.25rem 0 0;
+            transition: all 0.3s;
+        }
+
+        .chart-labels {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        /* Recent Reviews Card */
+        .recent-card {
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .recent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .recent-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.875rem;
+            padding: 1rem;
+            background-color: #fafafa;
+            border: 1px solid #f3f4f6;
+            border-radius: 0.625rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .recent-item:hover {
+            background-color: #f5f5f5;
+            border-color: #e5e7eb;
+        }
+
+        .recent-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .recent-icon svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: #6b7280;
+        }
+
+        .recent-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .recent-content h4 {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .recent-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.8125rem;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+
+        .recent-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .recent-meta svg {
+            width: 0.875rem;
+            height: 0.875rem;
+        }
+
+        .recent-stats {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stat-badge {
+            padding: 0.125rem 0.5rem;
+            background-color: #f3f4f6;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #4b5563;
+        }
+
+        .stat-badge.added {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .stat-badge.removed {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Status Banner */
+        .status-banner {
+            background: linear-gradient(135deg, #fce7e7 0%, #fcd6d6 100%);
+            border: 1px solid #f5c2c2;
+            border-radius: 1rem;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        .status-banner.approved {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-color: #86efac;
+        }
+
+        .status-banner.needs_changes {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-color: #fcd34d;
+        }
+
+        .status-icon {
+            width: 4rem;
+            height: 4rem;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .status-icon svg {
+            width: 2rem;
+            height: 2rem;
+            color: #dc2626;
+        }
+
+        .status-banner.approved .status-icon svg {
+            color: #059669;
+        }
+
+        .status-banner.needs_changes .status-icon svg {
+            color: #d97706;
+        }
+
+        .status-content {
+            flex: 1;
+        }
+
+        .status-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #991b1b;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-banner.approved .status-title {
+            color: #065f46;
+        }
+
+        .status-banner.needs_changes .status-title {
+            color: #92400e;
+        }
+
+        .status-meta {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .status-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        /* Analysis Cards */
+        .analysis-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Risk Analysis Card */
+        .risk-score-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .risk-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .risk-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #dc2626;
+            margin-bottom: 0.75rem;
+        }
+
+        .risk-bar-bg {
+            height: 0.5rem;
+            background-color: #f3f4f6;
+            border-radius: 0.25rem;
+            overflow: hidden;
+        }
+
+        .risk-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+            border-radius: 0.25rem;
+            transition: width 0.5s ease;
+        }
+
+        .risk-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .risk-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .risk-metric-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .risk-metric-value {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .risk-metric-tests {
+            color: #f59e0b;
+        }
+
+        .risk-metric-auth {
+            color: #dc2626;
+        }
+
+        .critical-files-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .critical-files-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.75rem;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background-color: #fef2f2;
+            border-radius: 0.375rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-item svg {
+            width: 1rem;
+            height: 1rem;
+            color: #dc2626;
+            flex-shrink: 0;
+        }
+
+        .file-path {
+            font-size: 0.8125rem;
+            font-family: 'Courier New', monospace;
+            color: #dc2626;
+        }
+
+        /* AI Reasoning Card */
+        .ai-reasoning-text {
+            font-size: 0.9375rem;
+            line-height: 1.7;
+            color: #4b5563;
+        }
+
+        /* Issues Section */
+        .issues-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .issue-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.625rem;
+            padding: 1rem 1.25rem;
+            background-color: #fafafa;
+        }
+
+        .issue-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .severity-badge {
+            padding: 0.25rem 0.625rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: lowercase;
+            flex-shrink: 0;
+        }
+
+        .severity-high {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .severity-critical {
+            background-color: #fce7e7;
+            color: #7f1d1d;
+        }
+
+        .severity-medium {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .issue-location {
+            font-size: 0.8125rem;
+            font-family: 'Courier New', monospace;
+            color: #6b7280;
+        }
+
+        .issue-title {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .issue-description {
+            font-size: 0.875rem;
+            line-height: 1.6;
+            color: #4b5563;
+            margin-bottom: 0.75rem;
+        }
+
+        .issue-suggestion {
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 0.875rem;
+            margin-top: 0.75rem;
+        }
+
+        .suggestion-icon {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .suggestion-icon svg {
+            width: 1rem;
+            height: 1rem;
+            color: #6b7280;
+            flex-shrink: 0;
+            margin-top: 0.125rem;
+        }
+
+        .suggestion-text {
+            font-size: 0.8125rem;
+            line-height: 1.5;
+            color: #4b5563;
+        }
+
+        /* Positive Notes Section */
+        .positive-notes-card {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #86efac;
+        }
+
+        .positive-notes-card .card-header {
+            color: #065f46;
+        }
+
+        .positive-notes-card .card-header svg {
+            color: #059669;
+        }
+
+        .positive-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .positive-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.625rem;
+        }
+
+        .check-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            background-color: #059669;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 0.125rem;
+        }
+
+        .check-icon svg {
+            width: 0.75rem;
+            height: 0.75rem;
+            color: white;
+        }
+
+        .positive-text {
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            color: #065f46;
+        }
+
+        /* Results Container */
+        #resultsContainer {
+            display: none;
+        }
+
+        #resultsContainer.show {
+            display: block;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 3rem;
+            height: 3rem;
+            border: 3px solid #f3f4f6;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+
+            .analysis-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .grid-4 {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .features-content {
+                gap: 2rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .grid-4 {
+                grid-template-columns: 1fr;
+            }
+
+            .features-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <div class="header-content">
+                <div class="header-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="16 18 22 12 16 6"></polyline>
+                        <polyline points="8 6 2 12 8 18"></polyline>
+                    </svg>
+                </div>
+                <div class="header-text">
+                    <h1>AI Code Review Assistant</h1>
+                    <p>Intelligent PR analysis powered by AI</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features Bar -->
+    <div class="features-bar">
+        <div class="features-container">
+            <div class="features-content">
+                <div class="feature-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    <span>Static Risk Analysis</span>
+                </div>
+                <div class="feature-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="10" r="3"></circle>
+                        <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"></path>
+                    </svg>
+                    <span>AI-Powered Review</span>
+                </div>
+                <div class="feature-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                    <span>Security Detection</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <div class="grid-container">
+            <!-- Left Column -->
+            <div>
+                <!-- Form Card -->
+                <div class="form-card" id="formCard">
+                    <div class="form-header">
+                        <div class="form-header-left">
+                            <div class="form-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                            </div>
+                            <div class="form-title-section">
+                                <h2>Submit Pull Request for Review</h2>
+                                <p>Paste your PR diff or use the sample to test</p>
+                            </div>
+                        </div>
+                        <button class="sample-btn" onclick="loadSamplePR()">Load Sample PR</button>
+                    </div>
+
+                    <form class="form-fields" id="reviewForm">
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label>PR Title <span class="required">*</span></label>
+                                <input type="text" name="pr_title" id="prTitle" placeholder="Add session tracking to login flow" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Language</label>
+                                <select name="language" id="language">
+                                    <option>TypeScript</option>
+                                    <option>JavaScript</option>
+                                    <option>Python</option>
+                                    <option>Java</option>
+                                    <option>Go</option>
+                                    <option>Rust</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea name="description" id="description" rows="3" placeholder="This PR adds session ID generation and TODO for rate limiting in the authentication flow."></textarea>
+                        </div>
+
+                        <div class="grid-4">
+                            <div class="form-group">
+                                <label>Author</label>
+                                <input type="text" name="author" id="author" placeholder="developer">
+                            </div>
+                            <div class="form-group">
+                                <label>Repository</label>
+                                <input type="text" name="repository" id="repository" placeholder="acme/auth-service">
+                            </div>
+                            <div class="form-group">
+                                <label>Source Branch</label>
+                                <input type="text" name="source_branch" id="sourceBranch" placeholder="feature/session-tracking">
+                            </div>
+                            <div class="form-group">
+                                <label>Target Branch</label>
+                                <input type="text" name="target_branch" id="targetBranch" placeholder="main">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Git Diff <span class="required">*</span></label>
+                            <textarea name="git_diff" id="gitDiff" rows="12" placeholder="diff --git a/src/auth/login.ts b/src/auth/login.ts&#10;index 1234567..abcdefg 100644&#10;--- a/src/auth/login.ts&#10;+++ b/src/auth/login.ts" required></textarea>
+                        </div>
+
+                        <button type="submit" class="submit-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Submit for Review
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div class="loading" id="loadingSpinner">
+                    <div class="spinner"></div>
+                    <p style="color: #6b7280; font-size: 0.875rem;">Analyzing your pull request...</p>
+                </div>
+
+                <!-- Results Container -->
+                <div id="resultsContainer">
+                    <!-- Status Banner -->
+                    <div class="status-banner" id="statusBanner">
+                        <div class="status-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                            </svg>
+                        </div>
+                        <div class="status-content">
+                            <div class="status-title" id="statusTitle">Blocked</div>
+                            <div class="status-meta">
+                                <div class="status-meta-item">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                    </svg>
+                                    <span id="confidenceText">100% confidence</span>
+                                </div>
+                                <div class="status-meta-item">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <polyline points="12 6 12 12 16 14"></polyline>
+                                    </svg>
+                                    <span id="timeText">7844ms</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analysis Section -->
+                    <div class="analysis-section">
+                        <div class="analysis-grid">
+                            <!-- Risk Analysis Card -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                    <h3>Risk Analysis</h3>
+                                </div>
+
+                                <div class="risk-score-container">
+                                    <div class="risk-label">Risk Score</div>
+                                    <div class="risk-value" id="riskScore">100%</div>
+                                    <div class="risk-bar-bg">
+                                        <div class="risk-bar-fill" id="riskBar" style="width: 100%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="risk-metrics">
+                                    <div class="risk-metric">
+                                        <span class="risk-metric-label">Files</span>
+                                        <span class="risk-metric-value" id="filesCount">2</span>
+                                    </div>
+                                    <div class="risk-metric">
+                                        <span class="risk-metric-label">Changes</span>
+                                        <span class="risk-metric-value" id="changesCount">+7 / -0</span>
+                                    </div>
+                                    <div class="risk-metric">
+                                        <span class="risk-metric-label">Tests</span>
+                                        <span class="risk-metric-value risk-metric-tests" id="testsStatus">None</span>
+                                    </div>
+                                    <div class="risk-metric">
+                                        <span class="risk-metric-label">Auth Changes</span>
+                                        <span class="risk-metric-value risk-metric-auth" id="authChanges">Yes</span>
+                                    </div>
+                                </div>
+
+                                <div class="critical-files-section" id="criticalFilesSection" style="display: none;">
+                                    <div class="critical-files-title">Critical Files</div>
+                                    <div id="criticalFilesList"></div>
+                                </div>
+                            </div>
+
+                            <!-- AI Reasoning Card -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                    <h3>AI Reasoning</h3>
+                                </div>
+                                <div class="ai-reasoning-text" id="aiReasoning">
+                                    Analyzing pull request...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Issues Found Card -->
+                        <div class="card">
+                            <div class="card-header">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                                <h3 id="issuesTitle">Issues Found (0)</h3>
+                            </div>
+                            <div class="issues-list" id="issuesList"></div>
+                        </div>
+
+                        <!-- Positive Notes Card -->
+                        <div class="card positive-notes-card" id="positiveNotesCard" style="display: none;">
+                            <div class="card-header">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M7 10v12"></path>
+                                    <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"></path>
+                                </svg>
+                                <h3>Positive Notes</h3>
+                            </div>
+                            <div class="positive-list" id="positiveList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Sidebar -->
+            <div class="sidebar">
+                <!-- Review Metrics Card -->
+                <div class="metrics-card">
+                    <div class="card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                        <h3>Review Metrics</h3>
+                    </div>
+
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-icon-wrapper">
+                                <div class="metric-icon total">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value total" id="totalReviews">1</div>
+                            <div class="metric-label">Total<br>Reviews</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-icon-wrapper">
+                                <div class="metric-icon approved">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value approved" id="approvedCount">0</div>
+                            <div class="metric-label">Approved</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-icon-wrapper">
+                                <div class="metric-icon changes">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value changes" id="changesNeedCount">0</div>
+                            <div class="metric-label">Changes</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-icon-wrapper">
+                                <div class="metric-icon blocked">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="metric-value blocked" id="blockedCount">0</div>
+                            <div class="metric-label">Blocked</div>
+                        </div>
+                    </div>
+
+                    <!-- Chart -->
+                    <div class="chart-container">
+                        <div class="chart-bars" id="chartBars">
+                            <div class="chart-bar-wrapper"><div class="chart-bar" style="height: 0%;"></div></div>
+                            <div class="chart-bar-wrapper"><div class="chart-bar" style="height: 0%;"></div></div>
+                            <div class="chart-bar-wrapper"><div class="chart-bar" style="height: 0%;"></div></div>
+                            <div class="chart-bar-wrapper"><div class="chart-bar" style="height: 0%;"></div></div>
+                            <div class="chart-bar-wrapper"><div class="chart-bar" style="height: 0%;"></div></div>
+                            <div class="chart-bar-wrapper"><div class="chart-bar" style="height: 0%;"></div></div>
+                            <div class="chart-bar-wrapper"><div class="chart-bar" style="height: 100%; min-height: 4px;"></div></div>
+                        </div>
+                        <div class="chart-labels">
+                            <span>Mon</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Reviews Card -->
+                <div class="recent-card">
+                    <div class="card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <h3>Recent Reviews</h3>
+                    </div>
+                    <div class="recent-list" id="recentReviewsList">
+                        <div class="empty-state">
+                            No reviews yet. Submit your first PR above!
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load sample PR data
+        function loadSamplePR() {
+            document.getElementById('prTitle').value = 'Add session tracking to login flow';
+            document.getElementById('description').value = 'This PR adds session ID generation and TODO for rate limiting in the authentication flow.';
+            document.getElementById('author').value = 'developer';
+            document.getElementById('repository').value = 'acme/auth-service';
+            document.getElementById('sourceBranch').value = 'feature/session-tracking';
+            document.getElementById('targetBranch').value = 'main';
+            document.getElementById('gitDiff').value = `diff --git a/src/auth/login.ts b/src/auth/login.ts
+index 1234567..abcdefg 100644
+--- a/src/auth/login.ts
++++ b/src/auth/login.ts
+@@ -25,4 +31,8 @@ export async function login(email: string, password: string) {
+ 
+   const isValid = await bcrypt.compare(password, user.passwordHash);
+   
+   if (!isValid) {
+@@ -25,4 +31,8 @@ export async function login(email: string, password: string) {
+   return {
+     token: generateToken(user.id),
+     user: sanitizeUser(user),
++    // Added session tracking
++    sessionId: generateSessionId(),
+   };
+ }`;
+        }
+
+        // Form submission handler
+        document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            
+            // Show loading, keep form visible
+            document.getElementById('loadingSpinner').classList.add('show');
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults(data.analysis, formData);
+                    await updateMetrics();
+                    await updateRecentReviews();
+                    
+                    // Auto-scroll to results
+                    setTimeout(() => {
+                        document.getElementById('resultsContainer').scrollIntoView({ 
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }, 200);
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error analyzing PR: ' + error.message);
+            } finally {
+                document.getElementById('loadingSpinner').classList.remove('show');
+            }
+        });
+
+        function displayResults(analysis, formData) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            const statusBanner = document.getElementById('statusBanner');
+            
+            // Show results container (form stays visible)
+            resultsContainer.style.display = 'block';
+            
+            // Update status banner
+            const recommendation = analysis.recommendation || 'needs_changes';
+            statusBanner.className = 'status-banner ' + recommendation;
+            
+            const statusIcon = statusBanner.querySelector('.status-icon svg');
+            const statusTitle = document.getElementById('statusTitle');
+            
+            if (recommendation === 'blocked') {
+                statusTitle.textContent = 'Blocked';
+                statusIcon.innerHTML = '<circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>';
+            } else if (recommendation === 'approved') {
+                statusTitle.textContent = 'Approved';
+                statusIcon.innerHTML = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>';
+            } else {
+                statusTitle.textContent = 'Needs Changes';
+                statusIcon.innerHTML = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>';
+            }
+
+            // Update risk score
+            const allIssues = [...(analysis.security_issues || []), ...(analysis.quality_issues || [])];
+            const highSeverityCount = allIssues.filter(i => i.severity === 'high').length;
+            const criticalSeverityCount = allIssues.filter(i => i.severity === 'critical').length;
+            const riskScore = Math.min(100, (criticalSeverityCount + highSeverityCount) * 33 + (allIssues.length - criticalSeverityCount - highSeverityCount) * 15);
+            
+            document.getElementById('riskScore').textContent = riskScore + '%';
+            document.getElementById('riskBar').style.width = riskScore + '%';
+
+            // Update risk metrics
+            const gitDiff = formData.get('git_diff');
+            const addedLines = (gitDiff.match(/^\+[^+]/gm) || []).length;
+            const removedLines = (gitDiff.match(/^-[^-]/gm) || []).length;
+            
+            document.getElementById('changesCount').textContent = `+${addedLines} / -${removedLines}`;
+            
+            // Update critical files
+            const criticalFiles = extractCriticalFiles(gitDiff);
+            if (criticalFiles.length > 0) {
+                document.getElementById('criticalFilesSection').style.display = 'block';
+                document.getElementById('criticalFilesList').innerHTML = criticalFiles.map(file => `
+                    <div class="file-item">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span class="file-path">${file}</span>
+                    </div>
+                `).join('');
+            }
+
+            // Update AI reasoning
+            document.getElementById('aiReasoning').textContent = analysis.summary || 'Analysis complete.';
+
+            // Display issues
+            displayIssues(allIssues);
+
+            // Display positive notes
+            displayPositiveNotes(analysis);
+
+            // Show results
+            resultsContainer.classList.add('show');
+        }
+
+        function extractCriticalFiles(gitDiff) {
+            const files = [];
+            const lines = gitDiff.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('diff --git')) {
+                    const match = line.match(/b\/(.+)$/);
+                    if (match) {
+                        const file = match[1];
+                        if (file.includes('auth') || file.includes('login') || file.includes('security')) {
+                            files.push(file);
+                        }
+                    }
+                }
+            }
+            return files;
+        }
+
+        function displayIssues(issues) {
+            const issuesList = document.getElementById('issuesList');
+            const issuesTitle = document.getElementById('issuesTitle');
+            
+            issuesTitle.textContent = `Issues Found (${issues.length})`;
+            
+            if (issues.length === 0) {
+                issuesList.innerHTML = '<div class="empty-state">No issues found!</div>';
+                return;
+            }
+
+            issuesList.innerHTML = issues.map(issue => {
+                // ✅ USE LLM-GENERATED TITLE FROM API
+                const title = issue.title || 'Code Issue';
+                // ✅ USE LLM-GENERATED SUGGESTION FROM API
+                const suggestion = issue.suggestion;
+                
+                return `
+                    <div class="issue-item">
+                        <div class="issue-header">
+                            <span class="severity-badge severity-${issue.severity}">${issue.severity}</span>
+                            <span class="issue-location">src/auth/login.ts:19</span>
+                        </div>
+                        <div class="issue-title">${title}</div>
+                        <div class="issue-description">${issue.message}</div>
+                        ${suggestion ? `
+                            <div class="issue-suggestion">
+                                <div class="suggestion-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                    </svg>
+                                    <span class="suggestion-text">${suggestion}</span>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ✅ REMOVED: getIssueTitle() - Now generated by LLM
+        // The title is now provided by the backend in issue.title
+
+        // ✅ REMOVED: getSuggestion() - Now generated by LLM
+        // The suggestion is now provided by the backend in issue.suggestion
+
+        function displayPositiveNotes(analysis) {
+            const positiveCard = document.getElementById('positiveNotesCard');
+            const positiveList = document.getElementById('positiveList');
+            
+            // ✅ USE LLM-GENERATED POSITIVE NOTES FROM API
+            const notes = analysis.positive_notes || [];
+
+            if (notes.length > 0) {
+                positiveCard.style.display = 'block';
+                positiveList.innerHTML = notes.map(note => `
+                    <div class="positive-item">
+                        <div class="check-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </div>
+                        <div class="positive-text">${note}</div>
+                    </div>
+                `).join('');
+            } else {
+                positiveCard.style.display = 'none';
+            }
+        }
+
+        async function updateMetrics() {
+            try {
+                const response = await fetch('/metrics');
+                const data = await response.json();
+                
+                document.getElementById('totalReviews').textContent = data.total || 0;
+                document.getElementById('approvedCount').textContent = data.approved || 0;
+                document.getElementById('changesNeedCount').textContent = data.needs_changes || 0;
+                document.getElementById('blockedCount').textContent = data.blocked || 0;
+            } catch (error) {
+                console.error('Error loading metrics:', error);
+            }
+        }
+
+        async function updateRecentReviews() {
+            try {
+                const response = await fetch('/reviews');
+                const data = await response.json();
+                
+                const recentList = document.getElementById('recentReviewsList');
+                
+                if (data.reviews && data.reviews.length > 0) {
+                    recentList.innerHTML = data.reviews.slice(-5).reverse().map(review => {
+                        const date = new Date(review.timestamp);
+                        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: false });
+                        
+                        return `
+                            <div class="recent-item">
+                                <div class="recent-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="recent-content">
+                                    <h4>${review.pr_title}</h4>
+                                    <div class="recent-meta">
+                                        <div class="recent-meta-item">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                            </svg>
+                                            ${review.repository || 'N/A'}
+                                        </div>
+                                        <span>${dateStr}</span>
+                                    </div>
+                                    <div class="recent-stats">
+                                        <span class="stat-badge added">+7</span>
+                                        <span class="stat-badge removed">-0</span>
+                                        <span class="stat-badge">2 files</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    recentList.innerHTML = '<div class="empty-state">No reviews yet. Submit your first PR above!</div>';
+                }
+            } catch (error) {
+                console.error('Error loading recent reviews:', error);
+            }
+        }
+
+        // Load metrics and recent reviews on page load
+        updateMetrics();
+        updateRecentReviews();
+
+        // Header scroll glassmorphism effect
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 5) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+    </script>
+</body>
+</html>
