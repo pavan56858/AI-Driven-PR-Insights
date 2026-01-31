@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 # ==============================
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = "llama3-70b-8192"
+GROQ_MODEL = "llama-3.1-70b-versatile"
+
 
 # Log configuration on startup
 logger.info(f"Groq API URL: {GROQ_API_URL}")
