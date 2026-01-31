@@ -4,16 +4,40 @@ import requests
 import json
 import re
 import os
+import logging
+import sys
 
 app = Flask(__name__)
 
 # ==============================
+# LOGGING SETUP
+# ==============================
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# ==============================
 # CONFIG
 # ==============================
-# Groq API Configuration
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")  # Read from environment variable
-GROQ_MODEL = "llama3-70b-8192"  # Using Groq's high-quality Llama 3 model
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = "llama3-70b-8192"
+
+# Log configuration on startup
+logger.info(f"Groq API URL: {GROQ_API_URL}")
+logger.info(f"Groq Model: {GROQ_MODEL}")
+logger.info(f"Groq API Key set: {bool(GROQ_API_KEY)}")
+
+if not GROQ_API_KEY:
+    logger.warning("⚠️  WARNING: GROQ_API_KEY environment variable is not set!")
+    logger.warning("    The application will not be able to make API calls.")
+    logger.warning("    Set it with: export GROQ_API_KEY='your-key-here'")
 
 reviews = []  # in-memory storage
 
@@ -43,7 +67,10 @@ def analyze_pr():
             "status": "pending"
         }
 
+        logger.info(f"Processing PR: {review['pr_title']}")
+        
         if not review["pr_title"] or not review["git_diff"]:
+            logger.warning("Missing required fields: PR title or git diff")
             return jsonify({"error": "PR title and Git diff required"}), 400
 
         # ===============================================
@@ -55,6 +82,7 @@ def analyze_pr():
         review["status"] = analysis["recommendation"]
 
         reviews.append(review)
+        logger.info(f"PR analysis completed: {review['id']} - Status: {review['status']}")
 
         return jsonify({
             "success": True,
@@ -63,6 +91,7 @@ def analyze_pr():
         })
 
     except Exception as e:
+        logger.error(f"Error in analyze_pr: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -94,21 +123,22 @@ def perform_llm_analysis(review):
     - Actionable suggestions for each issue
     - Positive notes for good practices
     - Overall summary and recommendation
-    
-    This replaces all hardcoded keyword matching and static rule logic.
     """
     
     git_diff = review["git_diff"]
+    logger.debug(f"Starting LLM analysis for PR: {review['pr_title']}")
     
     # Call Groq with a comprehensive review prompt
     llm_response = query_groq_for_review(git_diff, review)
     
     # Parse and validate LLM response
     if not llm_response:
+        logger.warning("LLM analysis failed, returning empty review")
         return generate_empty_review()
     
     # Extract recommendation from LLM analysis
     recommendation = determine_recommendation(llm_response)
+    logger.debug(f"Recommendation: {recommendation}")
     
     return {
         "security_issues": llm_response.get("security_issues", []),
@@ -123,25 +153,21 @@ def query_groq_for_review(git_diff, review):
     """
     Query Groq LLM for comprehensive code review analysis.
     
-    The LLM is instructed to:
-    - Analyze the git diff for security issues
-    - Identify quality/maintainability problems
-    - Generate specific, actionable suggestions
-    - Identify positive practices demonstrated
-    - Provide a concise summary
-    
-    All output is returned as JSON for safe parsing.
-    
-    CHANGED: Replaced Ollama/local LLM calls with Groq API integration.
+    Enhanced with detailed logging and error handling.
     """
     
     # Validate Groq API key exists
     if not GROQ_API_KEY:
-        print("ERROR: GROQ_API_KEY environment variable not set")
+        logger.error("GROQ_API_KEY environment variable not set")
         return None
+    
+    logger.debug(f"Git diff length: {len(git_diff)} characters")
     
     # Truncate git diff if too large to avoid token limit issues
     truncated_diff = git_diff[:8000] if len(git_diff) > 8000 else git_diff
+    
+    if len(truncated_diff) < len(git_diff):
+        logger.warning(f"Git diff truncated from {len(git_diff)} to {len(truncated_diff)} characters")
     
     prompt = f"""You are an expert senior software engineer conducting a thorough code review.
 
@@ -207,48 +233,84 @@ JSON FORMAT (strictly follow this structure):
                 "content": prompt
             }
         ],
-        "temperature": 0.3,  # Lower temperature for more consistent JSON
+        "temperature": 0.3,
         "max_tokens": 2048
     }
 
     try:
+        logger.debug(f"Sending request to Groq API: {GROQ_API_URL}")
+        logger.debug(f"Model: {GROQ_MODEL}")
+        
         response = requests.post(GROQ_API_URL, json=payload, headers=headers, timeout=120)
+        
+        logger.debug(f"Response status code: {response.status_code}")
+        
+        # Check for HTTP errors
         response.raise_for_status()
         
         response_data = response.json()
+        logger.debug(f"Response keys: {list(response_data.keys())}")
+        
+        # Extract content from Groq API response format
         raw_output = response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
-
-        print("\n--- GROQ RAW OUTPUT ---\n", raw_output)
+        
+        logger.debug(f"\n--- GROQ RAW OUTPUT ---\n{raw_output}\n--- END OUTPUT ---\n")
 
         # Extract JSON from LLM output (handles cases where LLM adds extra text)
         match = re.search(r"\{[\s\S]*\}", raw_output)
         if not match:
-            print("ERROR: No JSON found in LLM output")
+            logger.error("❌ No JSON found in LLM output")
+            logger.error(f"First 500 chars of output: {raw_output[:500]}")
             return None
 
         json_str = match.group()
-        parsed = json.loads(json_str)
+        logger.debug(f"Extracted JSON string (first 200 chars): {json_str[:200]}")
+        
+        try:
+            parsed = json.loads(json_str)
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ JSON Parse Error: {e}")
+            logger.error(f"JSON string (first 300 chars): {json_str[:300]}")
+            return None
         
         # Validate required fields exist
         if not isinstance(parsed, dict):
-            print("ERROR: LLM response is not a JSON object")
+            logger.error(f"❌ LLM response is not a JSON object: {type(parsed)}")
             return None
         
+        logger.debug(f"Parsed JSON keys: {list(parsed.keys())}")
+        
+        # Add defaults for missing fields
+        parsed.setdefault("security_issues", [])
+        parsed.setdefault("quality_issues", [])
+        parsed.setdefault("positive_notes", [])
+        parsed.setdefault("summary", "Code review completed.")
+        parsed.setdefault("has_blocking_issues", False)
+        
+        logger.info("✅ Successfully parsed Groq API response")
         return parsed
 
     except requests.exceptions.HTTPError as e:
-        print(f"Groq API HTTP Error: {e}")
+        logger.error(f"❌ Groq API HTTP Error: {e}")
         if e.response is not None:
-            print(f"Response body: {e.response.text}")
+            logger.error(f"Response status: {e.response.status_code}")
+            logger.error(f"Response body: {e.response.text}")
+        return None
+    except requests.exceptions.Timeout as e:
+        logger.error(f"❌ Request Timeout (>120s): {e}")
+        return None
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"❌ Connection Error to Groq API: {e}")
+        logger.error("Check internet connection and firewall settings")
         return None
     except json.JSONDecodeError as e:
-        print(f"JSON Parse Error: {e}")
+        logger.error(f"❌ JSON Parse Error in response data: {e}")
         return None
     except requests.RequestException as e:
-        print(f"Request Error: {e}")
+        logger.error(f"❌ Request Error: {e}")
         return None
     except Exception as e:
-        print(f"Unexpected Error in LLM Query: {e}")
+        logger.error(f"❌ Unexpected Error in LLM Query: {e}", exc_info=True)
         return None
 
 
@@ -257,25 +319,29 @@ def determine_recommendation(llm_response):
     Determine the overall recommendation based on issue severity.
     
     Logic:
-    - "blocked" if any security issues exist
+    - "blocked" if any security issues exist or blocking flag is set
     - "needs_changes" if any high-severity quality issues exist
     - "approved" otherwise
     """
     
     # Check for blocking issues flag from LLM
     if llm_response.get("has_blocking_issues"):
+        logger.debug("Recommendation: blocked (has_blocking_issues=true)")
         return "blocked"
     
     # Check for security issues
     security_issues = llm_response.get("security_issues", [])
     if any(issue.get("severity") == "high" for issue in security_issues):
+        logger.debug(f"Recommendation: blocked (high severity security issue)")
         return "blocked"
     
     # Check for high-severity quality issues
     quality_issues = llm_response.get("quality_issues", [])
     if any(issue.get("severity") == "high" for issue in quality_issues):
+        logger.debug(f"Recommendation: needs_changes (high severity quality issue)")
         return "needs_changes"
     
+    logger.debug("Recommendation: approved")
     return "approved"
 
 
@@ -287,13 +353,35 @@ def generate_empty_review():
         "security_issues": [],
         "quality_issues": [],
         "positive_notes": [],
-        "summary": "Unable to complete analysis. Please try again.",
+        "summary": "Unable to complete analysis. Please check logs and try again.",
         "recommendation": "approved"
     }
+
+
+# ==============================
+# ERROR HANDLERS
+# ==============================
+@app.errorhandler(400)
+def bad_request(error):
+    logger.error(f"Bad Request: {error}")
+    return jsonify({"error": "Bad request"}), 400
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"Internal Server Error: {error}")
+    return jsonify({"error": "Internal server error"}), 500
 
 
 # ==============================
 # RUN
 # ==============================
 if __name__ == "__main__":
+    logger.info("="*60)
+    logger.info("🚀 Starting AI Code Review Assistant with Groq")
+    logger.info("="*60)
+    logger.info(f"Flask app starting at http://0.0.0.0:5000")
+    logger.info(f"Press Ctrl+C to stop")
+    logger.info("="*60)
+    
     app.run(debug=True, host="0.0.0.0", port=5000)
